@@ -1,0 +1,4 @@
+What are the causes of AI hallucination?
+Explain reinforcement learning simply.
+What are limitations of transformer models?
+How does photosynthesis work on the moon?

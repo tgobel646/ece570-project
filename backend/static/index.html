@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LLM Response Reviewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { font-family: system-ui, Arial, sans-serif; }
+    body { margin: 32px; max-width: 900px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 10px #0001; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .spacer { flex:1; }
+    .btn { border: none; border-radius: 10px; padding: 12px 16px;
+           font-size: 1rem; cursor: pointer; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .good { background:#0ea5e9; color:white; }
+    .bad  { background:#ef4444; color:white; }
+    .skip { background:#e5e7eb; }
+    .small { font-size: 0.9rem; }
+    pre { white-space:pre-wrap; word-wrap:break-word; }
+    .progress { margin: 10px 0 20px; font-weight: 600; }
+    .pill { display:inline-block; background:#eef6ff; color:#2563eb;
+            padding:2px 8px; border-radius:999px; margin-left:6px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <h1>LLM Response Reviewer</h1>
+
+  <div class="progress">
+    <span id="counter">0 / 0</span>
+    <span class="pill" id="unratedCount">unrated: 0</span>
+  </div>
+
+  <div class="card" id="card">
+    <div class="row muted small">
+      <div><b>Model:</b> <span id="model">—</span></div>
+      <div class="pill" id="ratingPill">unrated</div>
+      <div class="spacer"></div>
+      <div id="idBadge" class="muted">ID: —</div>
+    </div>
+
+    <h3>Prompt</h3>
+    <pre id="prompt">—</pre>
+
+    <h3>Response</h3>
+    <pre id="response">—</pre>
+
+    <div class="row" style="margin-top:16px;">
+      <button class="btn bad"  id="btnBad">👎 Bad</button>
+      <button class="btn good" id="btnGood">👍 Good</button>
+      <div class="spacer"></div>
+      <button class="btn skip" id="btnSkip" title="Next without rating (or press →)">Skip →</button>
+    </div>
+  </div>
+
+  <p id="emptyMsg" class="muted hidden">
+    No responses found. Run your batch first (POST /run-batch), then refresh.
+  </p>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

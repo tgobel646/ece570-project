@@ -1,0 +1,130 @@
+---
+title: "Project Checkpoint 2: LLM Response Evaluation System"
+author: "Your Name"
+format:
+  revealjs:
+    theme: simple
+    transition: fade
+---
+
+## Slide 1 — Updated Problem Statement & Goal
+
+**Core Problem:**  
+Modern LLMs (like GPT, Gemini, and Groq’s LLaMA3) can hallucinate—producing confident but false information.  
+Evaluating and comparing hallucination tendencies across models is difficult without a unified testing interface.
+
+**Goal / Hypothesis:**  
+Create a multi-model evaluation system that:
+- Sends identical prompts to several LLMs in parallel.  
+- Stores and displays their responses.  
+- Allows human reviewers to rate factuality and clarity.  
+
+**Update since Checkpoint 1:**  
+- Goal refined from “detect hallucinations” → “enable structured comparison + human feedback.”    
+- Implemented working API implementation and public-facing UI.
+
+## Slide 2 — Updated Methodology & Progress
+
+**Technical Approach:**
+- **Backend:** FastAPI + AioHTTP for asynchronous requests to multiple APIs (Groq, OpenAI, etc.).  
+- **Database:** SQLite with SQLAlchemy to store prompts, responses, and ratings.  
+- **Frontend:** Static HTML/JS UI for reviewers to rate answers.  
+
+**Progress Since Checkpoint 1:**
+- Built a functioning FastAPI server.  
+- Integrated Groq Llama3 model call successfully.  
+- Added error handling and automatic response storage.  
+- Developed browser UI with rating buttons.  
+
+
+## Slide 3 — Code Snippet 1
+
+```python
+# llm_clients.py
+async def query_groq(session, prompt):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
+    data = {
+        "model": "llama3-70b-8192",
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    async with session.post(url, headers=headers, json=data) as r:
+        res = await r.json()
+        if "choices" not in res:
+            return {"model": "Groq LLaMA3",
+                    "response": f"Error: {res.get('error',res)}"}
+        return {"model": "Groq LLaMA3",
+                "response": res["choices"][0]["message"]["content"]}
+
+```
+## Slide 4 — Code Snippet 1 Explanation
+Purpose:
+    
+    Sends a user prompt asynchronously to Groq’s LLM API and returns the generated text. 
+    These prompts are intended to demonstrate a model's ability to differntiate between learned and trained data.
+
+Key Techniques:
+    
+    Uses AIOhttp for non-blocking API requests;
+    includes error handling so the server never crashes on API failures.
+
+Importance:
+    
+    This function is the heart of the system — it lets multiple LLMs be queried in parallel, supporting scalable hallucination testing and comparison.
+
+## Slide 5 — Code Snippet 2
+
+```python
+# main.py  (student-written FastAPI route)
+@app.get("/responses")
+def get_responses():
+    db = SessionLocal()
+    data = db.query(Response).all()
+    db.close()
+    return [
+        {"id": r.id, "prompt": r.prompt,
+         "model": r.model, "response": r.response,
+         "rating": r.rating}
+        for r in data
+    ]
+```
+
+## Slide 6 — Code Snippet 2 Explanation
+Purpose:
+    Fetches all stored model responses and ratings from the SQLite database.
+
+Why It Matters:
+    Connects the backend database to the frontend interface;
+    enables users to view previous results and evaluate them directly.
+
+Evidence of Progress:
+    Demonstrates functional database integration and end-to-end data flow between the FastAPI backend and the user-facing evaluation UI.
+
+## Slide 7 — New Preliminary Result
+Result Type: Functional Demo + Initial Collected Data
+
+Prompt:  "How does photosynthesis work on the moon?"
+----------------------------------------
+| Model         | Average Rating | Notes                 |
+|----------------|----------------|-----------------------|
+| Groq LLaMA3   | +1             | Accurate and concise  |
+| Qwen         | TBD             | Detailed definition    |
+| GPT-OSS        |  TBD             | Minor factual drift    |
+
+(New feature: UI ratings are stored automatically in SQLite.)
+
+![alt text](image.png)
+
+## Slide 8 — Result Analysis and Next Steps
+Analysis:
+    
+    The  produced satisfactory answers; Groq’s was most grounded.
+    No API failures occurred — backend is stable and ready for expansion.
+    Confirms architecture works for multi-LLM evaluation and human rating.
+
+Next Steps:
+
+    1. Add more model support.  
+    2. Extend UI to show side-by-side model comparisons.  
+    3. Automate statistical reporting (average scores, variance).  
+    4. Collect more user feedback for final analysis.

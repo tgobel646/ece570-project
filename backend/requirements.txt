@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+aiohttp
+python-dotenv
+sqlalchemy
+pathlib
