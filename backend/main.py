@@ -9,8 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from dotenv import load_dotenv
-from models import Response, SessionLocal
-from llm_clients import query_groq, query_gpt, query_qwen  # add more models if you have them
+from .models import Response, SessionLocal
+from .llm_clients import query_groq, query_gpt, query_qwen  # add more models if you have them
 
 load_dotenv()
 
