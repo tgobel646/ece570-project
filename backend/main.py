@@ -152,6 +152,8 @@ def rate_response(response_id: int, rating: int):
         db.commit()
         db.refresh(new_rating)
 
+        print(f"Received rating {rating} for response {response_id}")  # debug
+
         return {"status": "rated", "id": response_id, "score": rating}
     finally:
         db.close()
