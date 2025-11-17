@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 
 from dotenv import load_dotenv
 from .models import Response, SessionLocal
-from .llm_clients import query_groq, query_gpt, query_qwen  # add more models if you have them
+from .llm_clients import query_groq, query_gpt, query_qwen, query_kimi
 
 load_dotenv()
 
@@ -59,7 +59,8 @@ async def run_batch():
             tasks = [
                 query_groq(session, prompt),
                 query_gpt(session, prompt),
-                # add other models here...
+                query_qwen(session, prompt),
+                query_kimi(session, prompt),
             ]
             results = await asyncio.gather(*tasks)
 

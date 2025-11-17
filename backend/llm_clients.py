@@ -88,6 +88,31 @@ async def query_qwen(session, prompt):
             "response": res["choices"][0]["message"]["content"],
         }
     
-    
+async def query_kimi(session, prompt):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
+    data = {
+        "model": "moonshotai/kimi-k2-instruct-0905",
+        "messages": [{"role": "user", "content": prompt}],
+    }
 
-# Add similar functions for OpenAI and Gemini if desired.
+    async with session.post(url, headers=headers, json=data) as r:
+        try:
+            res = await r.json()
+        except Exception as e:
+            return {"model": "Kimi K2", "response": f"JSON decode error: {e}"}
+
+        # Handle error responses gracefully
+        if "choices" not in res:
+            # Log or print the full response so you can debug
+            print("Kimi K2", res)
+            return {
+                "model": "Kimi K2",
+                "response": f"Kimi K2 returned error: {res.get('error', res)}",
+            }
+
+        return {
+            "model": "Kimi K2",
+            "response": res["choices"][0]["message"]["content"],
+        }
+    
