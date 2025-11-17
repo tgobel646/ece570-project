@@ -4,4 +4,4 @@ aiohttp
 python-dotenv
 sqlalchemy
 pathlib
-sycopg2-binary
+psycopg2-binary
