@@ -1,4 +1,8 @@
-What are the causes of AI hallucination?
-Explain reinforcement learning simply.
-What are limitations of transformer models?
 How does photosynthesis work on the moon?
+What are the three moons of Venus and how were they discovered?
+What treaty ended the 1857 Arctic–Mongolian War?
+Who was the first U.S. president to travel to Mars?
+What caused the collapse of the Silver Cities?
+List the programming languages created by Isaac Newton.
+A train leaves London going 30 mph east. A second train leaves Tokyo going 200 mph west. Where do they meet?
+If a triangle has 4 sides and a circle has corners, compare their perimeters.
