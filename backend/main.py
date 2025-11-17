@@ -3,13 +3,15 @@ import asyncio
 import aiohttp
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from collections import defaultdict
+
 from dotenv import load_dotenv
-from .models import Response, SessionLocal
+from .models import Response, Rating, SessionLocal
 from .llm_clients import query_groq, query_gpt, query_qwen, query_kimi
 
 load_dotenv()
@@ -99,24 +101,57 @@ def get_responses():
             "model": r.model,
             "response": r.response,
             "rating": r.rating,
-            "correct_answer": r.correct_answer,   # NEW
+            "correct_answer": r.correct_answer,
         }
         for r in data
     ]
 
+# ---------- API: Get summary of ratings ----------
 
+@app.get("/ratings-summary")
+def ratings_summary():
+    db = SessionLocal()
+    try:
+        responses = db.query(Response).all()
+        summary = []
+        for r in responses:
+            scores = [rt.score for rt in r.ratings]  # via relationship
+            if scores:
+                avg = sum(scores) / len(scores)
+                num_pos = sum(1 for s in scores if s > 0)
+                num_neg = sum(1 for s in scores if s < 0)
+            else:
+                avg = None
+                num_pos = num_neg = 0
+
+            summary.append({
+                "response_id": r.id,
+                "prompt": r.prompt,
+                "model": r.model,
+                "num_ratings": len(scores),
+                "num_positive": num_pos,
+                "num_negative": num_neg,
+                "average_score": avg,
+            })
+        return summary
+    finally:
+        db.close()
 
 # ---------- API: RATE RESPONSE ----------
 
 @app.post("/rate/{response_id}/{rating}")
 def rate_response(response_id: int, rating: int):
     db = SessionLocal()
-    r = db.query(Response).get(response_id)
-    if r is None:
-        db.close()
-        return {"status": "error", "message": f"id {response_id} not found"}
+    try:
+        r = db.query(Response).get(response_id)
+        if r is None:
+            raise HTTPException(status_code=404, detail=f"id {response_id} not found")
 
-    r.rating = rating
-    db.commit()
-    db.close()
-    return {"status": "rated", "id": response_id, "rating": rating}
+        new_rating = Rating(response_id=response_id, score=rating)
+        db.add(new_rating)
+        db.commit()
+        db.refresh(new_rating)
+
+        return {"status": "rated", "id": response_id, "score": rating}
+    finally:
+        db.close()
