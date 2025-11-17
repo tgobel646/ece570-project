@@ -1,58 +1,38 @@
-import os
-import asyncio
-import aiohttp
+# backend/main.py
+
 from pathlib import Path
+from contextlib import asynccontextmanager
+import aiohttp
+import asyncio
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from collections import defaultdict
-
-from dotenv import load_dotenv
-from .models import Response, Rating, SessionLocal
-from .llm_clients import query_groq, query_gpt, query_qwen, query_kimi
-
-load_dotenv()
+from .models import Response, Rating, SessionLocal   
+from .llm_clients import query_groq, query_gpt, query_kimi, query_qwen       
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
-app = FastAPI()
+# -------------------- CORE BATCH LOGIC --------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Serve static files (index.html, app.js) at /static/...
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-# ---------- FRONTEND ROOT (single link) ----------
-
-@app.get("/")
-def root():
-    """Serve the main reviewer UI."""
-    index_path = STATIC_DIR / "index.html"
-    return FileResponse(index_path)
-
-
-# ---------- API: RUN BATCH ----------
-
-@app.post("/run-batch")
-async def run_batch():
+async def run_batch_core():
     prompts_path = BASE_DIR / "prompts.txt"
-    answers_path = BASE_DIR / "answers.txt"
+    answers_path = BASE_DIR / "answers.txt"   # comment this out if you don't use it
 
     with prompts_path.open() as f:
         prompts = [line.strip() for line in f if line.strip()]
 
+    # if you don't use correct answers, you can remove everything about answers_path
     with answers_path.open() as f:
         answers = [line.strip() for line in f if line.strip()]
+
+    if len(prompts) != len(answers):
+        raise HTTPException(
+            status_code=400,
+            detail=f"prompts ({len(prompts)}) and answers ({len(answers)}) mismatch"
+        )
 
     total_responses = 0
 
@@ -61,8 +41,8 @@ async def run_batch():
             tasks = [
                 query_groq(session, prompt),
                 query_gpt(session, prompt),
-                query_qwen(session, prompt),
                 query_kimi(session, prompt),
+                query_qwen(session, prompt),
             ]
             results = await asyncio.gather(*tasks)
 
@@ -73,7 +53,7 @@ async def run_batch():
                         prompt=prompt,
                         model=res["model"],
                         response=res["response"],
-                        correct_answer=correct_answer,  # NEW
+                        correct_answer=correct_answer,
                     )
                     db.add(entry)
                     total_responses += 1
@@ -87,72 +67,85 @@ async def run_batch():
         "num_responses": total_responses,
     }
 
-# ---------- API: GET RESPONSES ----------
+# -------------------- LIFESPAN (RUN BATCH ONCE IF EMPTY) --------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # runs BEFORE the app starts serving
+    db = SessionLocal()
+    try:
+        count = db.query(Response).count()
+    finally:
+        db.close()
+
+    if count == 0:
+        print("No responses found; running initial batch...")
+        await run_batch_core()
+    else:
+        print(f"Found {count} responses; skipping initial batch.")
+
+    # hand control to FastAPI
+    yield
+
+    # runs AFTER shutdown (optional cleanup)
+    print("Server shutting down.")
+
+# -------------------- CREATE APP (THIS IS THE ONE UVICORN USES) --------------------
+
+app = FastAPI(lifespan=lifespan)
+
+# Static files + index.html
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+@app.get("/")
+def root():
+    return FileResponse(STATIC_DIR / "index.html")
+
+# -------------------- API ENDPOINTS --------------------
+
+@app.post("/run-batch")
+async def run_batch():
+    return await run_batch_core()
 
 @app.get("/responses")
 def get_responses():
     db = SessionLocal()
-    data = db.query(Response).all()
-    db.close()
-    return [
-        {
-            "id": r.id,
-            "prompt": r.prompt,
-            "model": r.model,
-            "response": r.response,
-            "rating": r.rating,
-            "correct_answer": r.correct_answer,
-        }
-        for r in data
-    ]
-
-# ---------- API: Get summary of ratings ----------
-
-@app.get("/ratings-summary")
-def ratings_summary():
-    db = SessionLocal()
     try:
-        responses = db.query(Response).all()
-        summary = []
-        for r in responses:
-            scores = [rt.score for rt in r.ratings]  # via relationship
-            if scores:
-                avg = sum(scores) / len(scores)
-                num_pos = sum(1 for s in scores if s > 0)
-                num_neg = sum(1 for s in scores if s < 0)
-            else:
-                avg = None
-                num_pos = num_neg = 0
+        rows = db.query(Response).all()
+        out = []
+        for r in rows:
+            scores = [rt.score for rt in r.ratings] if hasattr(r, "ratings") else []
+            num_pos = sum(1 for s in scores if s > 0)
+            num_neg = sum(1 for s in scores if s < 0)
+            cumulative = sum(scores) if scores else 0
 
-            summary.append({
-                "response_id": r.id,
+            out.append({
+                "id": r.id,
                 "prompt": r.prompt,
                 "model": r.model,
+                "response": r.response,
+                "correct_answer": getattr(r, "correct_answer", None),
                 "num_ratings": len(scores),
-                "num_positive": num_pos,
-                "num_negative": num_neg,
-                "average_score": avg,
+                "positive_ratings": num_pos,
+                "negative_ratings": num_neg,
+                "cumulative_score": cumulative,
             })
-        return summary
+        return out
     finally:
         db.close()
-
-# ---------- API: RATE RESPONSE ----------
 
 @app.post("/rate/{response_id}/{rating}")
 def rate_response(response_id: int, rating: int):
     db = SessionLocal()
     try:
-        r = db.query(Response).get(response_id)
-        if r is None:
+        resp = db.query(Response).get(response_id)
+        if resp is None:
             raise HTTPException(status_code=404, detail=f"id {response_id} not found")
 
         new_rating = Rating(response_id=response_id, score=rating)
         db.add(new_rating)
         db.commit()
         db.refresh(new_rating)
-
-        print(f"Received rating {rating} for response {response_id}")  # debug
 
         return {"status": "rated", "id": response_id, "score": rating}
     finally:

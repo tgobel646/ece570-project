@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Text, create_engine, ForeignKey
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+import os
 
+DATABASE_URL = os.getenv("postgresql://llm_eval_db_344y_user:XboiOQGXAea1V8BphCgn8mXbRHFIQ2er@dpg-d4dn5pc9c44c73bcbsmg-a.ohio-postgres.render.com/llm_eval_db_344y")
 Base = declarative_base()
 
 class Response(Base):
@@ -23,6 +25,14 @@ class Rating(Base):
 
     response = relationship("Response", back_populates="ratings")
 
-engine = create_engine("sqlite:///database.db",connect_args={"check_same_thread": False})
-Base.metadata.create_all(engine)
-SessionLocal = sessionmaker(bind=engine)
+if not DATABASE_URL:
+    # Local fallback: still allows you to run with SQLite on your laptop
+    DATABASE_URL = "sqlite:///./database.db"
+    connect_args = {"check_same_thread": False}
+else:
+    connect_args = {}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base.metadata.create_all(bind=engine)
