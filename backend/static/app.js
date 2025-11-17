@@ -16,6 +16,7 @@ const btnBad       = document.getElementById("btnBad");
 const btnSkip      = document.getElementById("btnSkip");
 const emptyMsg     = document.getElementById("emptyMsg");
 const card         = document.getElementById("card");
+const elCorrect      = document.getElementById("correctAnswer");
 
 init();
 
@@ -51,6 +52,7 @@ function renderCurrent() {
   elModel.textContent    = item.model ?? "—";
   elPrompt.textContent   = item.prompt ?? "—";
   elResponse.textContent = item.response ?? "—";
+  elCorrect.textContent  = item.correct_answer ?? "—";
   elIdBadge.textContent  = `ID: ${item.id}`;
   elRatingPill.textContent =
     item.rating == null ? "unrated" :

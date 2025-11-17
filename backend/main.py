@@ -44,17 +44,22 @@ def root():
 @app.post("/run-batch")
 async def run_batch():
     prompts_path = BASE_DIR / "prompts.txt"
+    answers_path = BASE_DIR / "answers.txt"
+
     with prompts_path.open() as f:
         prompts = [line.strip() for line in f if line.strip()]
+
+    with answers_path.open() as f:
+        answers = [line.strip() for line in f if line.strip()]
 
     total_responses = 0
 
     async with aiohttp.ClientSession() as session:
-        for prompt in prompts:
+        for prompt, correct_answer in zip(prompts, answers):
             tasks = [
                 query_groq(session, prompt),
                 query_gpt(session, prompt),
-                query_qwen(session, prompt),
+                # add other models here...
             ]
             results = await asyncio.gather(*tasks)
 
@@ -65,6 +70,7 @@ async def run_batch():
                         prompt=prompt,
                         model=res["model"],
                         response=res["response"],
+                        correct_answer=correct_answer,  # NEW
                     )
                     db.add(entry)
                     total_responses += 1
@@ -77,7 +83,6 @@ async def run_batch():
         "num_prompts": len(prompts),
         "num_responses": total_responses,
     }
-
 
 # ---------- API: GET RESPONSES ----------
 
@@ -93,9 +98,11 @@ def get_responses():
             "model": r.model,
             "response": r.response,
             "rating": r.rating,
+            "correct_answer": r.correct_answer,   # NEW
         }
         for r in data
     ]
+
 
 
 # ---------- API: RATE RESPONSE ----------

@@ -11,6 +11,7 @@ class Response(Base):
     model = Column(String)
     response = Column(Text)
     rating = Column(Integer, nullable=True)
+    correct_answer = Column(Text, nullable=True)
 
 engine = create_engine("sqlite:///database.db")
 Base.metadata.create_all(engine)
