@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .models import Response, Rating, SessionLocal   
-from .llm_clients import query_groq, query_gpt, query_kimi, query_qwen       
+from .llm_clients import query_groq, query_gpt, query_kimi     
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -42,7 +42,6 @@ async def run_batch_core():
                 query_groq(session, prompt),
                 query_gpt(session, prompt),
                 query_kimi(session, prompt),
-                query_qwen(session, prompt),
             ]
             results = await asyncio.gather(*tasks)
 
